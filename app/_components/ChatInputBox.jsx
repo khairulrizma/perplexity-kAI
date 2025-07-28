@@ -120,9 +120,10 @@
 'use client'
 
 import Image from 'next/image'
-import React from 'react'
+import React, { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  ArrowRight,
   AtomIcon,
   AudioLinesIcon,
   CpuIcon,
@@ -139,8 +140,39 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { AIModelsOption } from '@/services/Shared'
+import { supabase } from '@/services/Supabase'
+import { useUser } from '@clerk/nextjs'
+import { v4 as uuidv4 } from 'uuid'
+import { useRouter } from 'next/navigation'
 
 function Chatbox() {
+  //whenever user type in the search bar it will save here thats why need state to hold that value.
+  const [userSearchInput, setUserSearchInput] = useState()
+  const [searchType, setSearchType] = useState('search')
+  const [loading, setLoading] = useState(false)
+  const { user } = useUser()
+
+  const router = useRouter()
+  const onSearchQuery = async () => {
+    setLoading(true)
+    const libId = uuidv4()
+    const { data } = await supabase
+      .from('Library')
+      .insert([
+        {
+          searchInput: userSearchInput,
+          userEmail: user?.primaryEmailAddress?.emailAddress,
+          type: searchType,
+          libId: libId,
+        },
+      ])
+      .select()
+    setLoading(false)
+
+    router.push('/search/' + libId)
+    console.log(data[0])
+  }
+
   return (
     <div className='flex h-screen flex-col items-center justify-center w-full px-4'>
       {/* Logo */}
@@ -161,12 +193,14 @@ function Chatbox() {
               <TabsTrigger
                 value='search'
                 className='text-primary flex items-center gap-2'
+                onClick={() => setSearchType('search')}
               >
                 <SearchCheckIcon className='w-4 h-4' /> Search
               </TabsTrigger>
               <TabsTrigger
                 value='research'
                 className='text-primary flex items-center gap-2'
+                onClick={() => setSearchType('research')}
               >
                 <AtomIcon className='w-4 h-4' /> Research
               </TabsTrigger>
@@ -177,6 +211,9 @@ function Chatbox() {
                 type='text'
                 placeholder='Ask Anything with k-AI...'
                 className='w-full p-4 mt-2 rounded-xl border outline-none'
+                onChange={(e) => {
+                  setUserSearchInput(e.target.value)
+                }}
               />
             </TabsContent>
             <TabsContent value='research'>
@@ -184,6 +221,9 @@ function Chatbox() {
                 type='text'
                 placeholder='Research Anything...'
                 className='w-full p-4 mt-2 rounded-xl border outline-none'
+                onChange={(e) => {
+                  setUserSearchInput(e.target.value)
+                }}
               />
             </TabsContent>
           </Tabs>
@@ -224,8 +264,19 @@ function Chatbox() {
             <Button
               size='icon'
               className='bg-primary text-white rounded-full cursor-pointer'
+              onClick={() => {
+                if (userSearchInput) {
+                  onSearchQuery()
+                } else {
+                  null
+                }
+              }}
             >
-              <AudioLinesIcon className='w-4 h-4' />
+              {!userSearchInput ? (
+                <AudioLinesIcon className='w-4 h-4' />
+              ) : (
+                <ArrowRight className='w-4 h-4' disabled={loading} />
+              )}
             </Button>
           </div>
         </div>
